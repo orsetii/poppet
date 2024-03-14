@@ -1,13 +1,19 @@
 use std::time::Duration;
 
+use nom::error::ParseError;
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, render::Canvas, video::Window, Sdl};
 use thiserror::Error;
+use tracing::info;
 
-use crate::{error, PoppetError, PoppetResult};
+use crate::{net::Response, renderer::parsers::html, PoppetResult};
+
+pub mod page;
+pub mod parsers;
 
 pub struct Renderer {
     sdl_context: Sdl,
     canvas: Canvas<Window>,
+    current_page: Option<page::Page>,
 }
 
 impl Renderer {
@@ -16,7 +22,7 @@ impl Renderer {
         let video_subsystem = sdl_context.video()?;
 
         let window = video_subsystem
-            .window("rust-sdl2 demo: Events", 800, 600)
+            .window("Poppet Browser", 800, 600)
             .position_centered()
             .resizable()
             .build()
@@ -31,6 +37,7 @@ impl Renderer {
         Ok(Self {
             sdl_context,
             canvas,
+            current_page: None,
         })
     }
 
@@ -51,8 +58,19 @@ impl Renderer {
 
         self.canvas.clear();
         self.canvas.present();
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+        std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         Ok(())
+    }
+
+    fn current_page_raw(&self) -> String {
+        self.current_page.clone().unwrap().html_content
+    }
+
+    pub fn render_response(&mut self, resp: Response) {
+        info!("Rendering new {}-bytes long page", &resp.body.len());
+        self.current_page = Some(page::Page::new(resp));
+        let parsed_html = html::parse(&self.current_page_raw());
+        info!("Parsed HTML: {:#?}", parsed_html);
     }
 }
 
@@ -60,4 +78,6 @@ impl Renderer {
 pub enum RenderError {
     #[error("User requested exit")]
     Exit,
+    #[error("Error parsing HTML: {0}")]
+    HTMLParseError(String),
 }

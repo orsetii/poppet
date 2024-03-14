@@ -13,6 +13,9 @@ pub enum PoppetError {
     #[error("Error from Poppet Renderer")]
     RenderError(#[from] crate::renderer::RenderError),
 
+    #[error("Error from Poppet Network Operation")]
+    NetworkError(#[from] crate::net::NetError),
+
     #[error("unknown error")]
     Unknown,
 }
@@ -22,4 +25,3 @@ impl From<String> for PoppetError {
         Self::SdlError(value)
     }
 }
-
